@@ -4,26 +4,44 @@ inputs:
   ref:
     description: 'git ref for warpforge tag, branch, commit'
     default: master
+  bin:
+    description: 'bin path for warpforge'
+    default: ${{ runner.temp }}/warpforge/bin
+  path:
+    description: 'build path for warpforge repository'
+    default: ${{ runner.temp }}/warpforge
 runs:
   using: "composite"
   steps:
+    - name: Cache Warpforge
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.bin }}
     - name: Checkout Warpforge
+      if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: warptools/warpforge
         ref: ${{ inputs.ref }}
-        path: warpforge
+        path: ${{ inputs.path }}
     - uses: actions/setup-go@v3
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         go-version: '^1.18' # The Go version to download (if necessary) and use.
     - name: Install Warpforge
-      working-directory: warpforge
-      run: make install
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: ${{ inputs.path }}
+      env:
+        GOBIN: ${{ inputs.bin }}
+      run: |
+        cp ./plugins/* "${GOBIN}/"
+        go install ./...
       shell: bash
     - name: Execute warpforge
       run: |
         pwd
-        ls
+        ls -al
         mkdir -p ~/.warpforge/cache
         warpforge run
       shell: bash

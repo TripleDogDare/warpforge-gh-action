@@ -13,18 +13,22 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Cache Warpforge
-      id: cache
-      uses: actions/cache@v3
-      with:
-        path: ${{ inputs.bin }}
     - name: Checkout Warpforge
-      if: steps.cache.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: warptools/warpforge
         ref: ${{ inputs.ref }}
         path: ${{ inputs.path }}
+    - name: warpforge hash
+      id: wf-hash
+      shell: bash
+      run: echo "git-hash=$(git rev-parse HEAD)"" >> $GITHUB_OUTPUT
+    - name: Cache Warpforge
+      id: cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ inputs.bin }}
+        key: ${{ steps.wf-hash.outputs.git-hash }}
     - uses: actions/setup-go@v3
       if: steps.cache.outputs.cache-hit != 'true'
       with:
@@ -40,8 +44,7 @@ runs:
       shell: bash
     - name: Execute warpforge
       run: |
-        pwd
-        ls -al
+        PATH=${PATH}:"${{ inputs.path }}"
         mkdir -p ~/.warpforge/cache
         warpforge run
       shell: bash
